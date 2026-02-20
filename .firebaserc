@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "staging-check": "check-my-fit"
+  },
+  "targets": {},
+  "etags": {}
+}

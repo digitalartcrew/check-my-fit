@@ -1,0 +1,50 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users: anyone authenticated can read, only owner can write
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Outfits: anyone authenticated can read
+    match /outfits/{outfitId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+                    && request.resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null
+                    && resource.data.userId == request.auth.uid;
+      allow delete: if request.auth != null
+                    && resource.data.userId == request.auth.uid;
+
+      // Ratings: one per user, doc ID must match rater's UID, value 1-5
+      match /ratings/{ratingUserId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null
+                     && request.auth.uid == ratingUserId
+                     && request.resource.data.value is int
+                     && request.resource.data.value >= 1
+                     && request.resource.data.value <= 5;
+      }
+
+      // Comments: anyone authenticated can create, only comment owner can delete
+      match /comments/{commentId} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null
+                      && request.resource.data.userId == request.auth.uid
+                      && request.resource.data.text is string
+                      && request.resource.data.text.size() <= 500;
+        allow delete: if request.auth != null
+                      && resource.data.userId == request.auth.uid;
+      }
+    }
+
+    // AI Suggestions: outfit owner can read, only Cloud Functions (admin) can write
+    match /aiSuggestions/{outfitId} {
+      allow read: if request.auth != null
+                  && resource.data.userId == request.auth.uid;
+      allow write: if false; // Admin SDK only via Cloud Functions
+    }
+  }
+}
