@@ -1,5 +1,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+// @ts-ignore - getReactNativePersistence exists in the Metro RN bundle (dist/rn/index.js)
+import { initializeAuth, getAuth, getReactNativePersistence } from 'firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { getFunctions } from 'firebase/functions';
@@ -15,7 +17,18 @@ const firebaseConfig = {
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-export const auth = getAuth(app);
+// initializeAuth with AsyncStorage persistence so auth state survives app restarts.
+// Try/catch handles hot-reload re-evaluation where auth is already initialized.
+let auth: ReturnType<typeof getAuth>;
+try {
+  auth = initializeAuth(app, {
+    persistence: getReactNativePersistence(AsyncStorage),
+  });
+} catch {
+  auth = getAuth(app);
+}
+
+export { auth };
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const functions = getFunctions(app);

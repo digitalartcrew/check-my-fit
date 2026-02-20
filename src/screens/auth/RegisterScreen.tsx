@@ -36,8 +36,13 @@ export function RegisterScreen({ navigation }: Props) {
       return;
     }
     const timer = setTimeout(async () => {
-      const available = await isUsernameAvailable(username);
-      setUsernameAvailable(available);
+      try {
+        const available = await isUsernameAvailable(username);
+        setUsernameAvailable(available);
+      } catch {
+        // If check fails (e.g. no network), optimistically allow proceeding
+        setUsernameAvailable(true);
+      }
     }, 500);
     return () => clearTimeout(timer);
   }, [username]);
@@ -52,13 +57,29 @@ export function RegisterScreen({ navigation }: Props) {
     if (nameErr) errs.displayName = nameErr;
     if (userErr) errs.username = userErr;
     if (usernameAvailable === false) errs.username = 'Username is already taken';
-    if (!userErr && usernameAvailable === null) errs.username = 'Checking username availability...';
     if (emailErr) errs.email = emailErr;
     if (passErr) errs.password = passErr;
 
     if (Object.keys(errs).length > 0) {
       setErrors(errs);
       return;
+    }
+
+    // If still checking, do it inline now
+    if (!userErr && usernameAvailable === null) {
+      setLoading(true);
+      try {
+        const available = await isUsernameAvailable(username);
+        if (!available) {
+          setErrors({ username: 'Username is already taken' });
+          setLoading(false);
+          return;
+        }
+        setUsernameAvailable(true);
+      } catch {
+        // Proceed optimistically if check fails
+      }
+      setLoading(false);
     }
 
     setErrors({});
